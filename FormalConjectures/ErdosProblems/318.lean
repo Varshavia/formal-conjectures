@@ -155,8 +155,33 @@ theorem erdos_318.variants.contain_single_even {A : Set ℕ} (hA : A.Infinite)
     have : (0 : ℝ) < n := by exact_mod_cast Nat.pos_of_ne_zero (hS hn).2
     simp [show n ≠ e from fun h ↦ heS (h ▸ hn), this]
 
+/-- The odd numbers together with `2` have natural density `1 / 2`. -/
+@[category API, AMS 11]
+lemma hasDensity_odd_union_two : ({n | Odd n} ∪ {2} : Set ℕ).HasDensity (1 / 2) := by
+  have hc (b : ℕ) (hb : 2 < b) : ((({n | Odd n} ∪ {2}) ∩ Iio b).ncard : ℝ) =
+      b - ({n : ℕ | Even n} ∩ Iio b).ncard + 1 := by
+    have h := ncard_inter_add_ncard_sdiff_eq_ncard (Iio b) {n : ℕ | Even n} (finite_Iio b)
+    have e : Iio b \ {n | Even n} = {n | Odd n} ∩ Iio b := by
+      ext; simp [Nat.not_even_iff_odd, and_comm]
+    have i : ({n | Odd n} ∪ {2}) ∩ Iio b = insert 2 ({n | Odd n} ∩ Iio b) := by
+      ext; simp only [mem_inter_iff, mem_union, mem_insert_iff, mem_singleton_iff]; grind
+    rw [e, ncard_Iio_nat, inter_comm] at h
+    rw [i, ncard_insert_of_notMem (by simp) ((finite_Iio b).inter_of_right _)]
+    have := congrArg (Nat.cast (R := ℝ)) h
+    push_cast at this ⊢
+    linarith
+  have hE := Nat.hasDensity_even
+  simp only [HasDensity, partialDensity, inter_univ, univ_inter, ncard_Iio_nat] at hE ⊢
+  have hlim := ((tendsto_const_nhds (x := (1 : ℝ))).sub hE).add
+    tendsto_one_div_atTop_nhds_zero_nat
+  norm_num at hlim
+  refine hlim.congr' (Filter.eventually_atTop.2 ⟨3, fun b hb => ?_⟩)
+  show _ = (_ : ℝ) / _
+  rw [hc b hb]
+  have : (b : ℝ) ≠ 0 := by positivity
+  field_simp
+
 /-- There exists a set `A` with positive density that does not have property `P₁`.
-#TODO: prove this lemma by assuming `erdos_318.contain_single_even`.
 
 The density sits in an existential, so `HasPosDensity` is the *stronger* reading here and
 weakening it to positive lower density would claim less, which is the opposite of the usual
@@ -165,7 +190,13 @@ situation for Erdős' "positive density". It also costs nothing: by
 odd numbers together with one even number have density `1 / 2` on the nose. -/
 @[category research solved, AMS 11]
 theorem erdos_318.parts.i : ∃ A : Set ℕ, HasPosDensity A ∧ ¬ P₁ A := by
-  sorry
+  refine ⟨{n | Odd n} ∪ {2}, ⟨1 / 2, by norm_num, hasDensity_odd_union_two⟩,
+    erdos_318.variants.contain_single_even
+      (Nat.infinite_of_hasDensity_pos hasDensity_odd_union_two (by norm_num)) ?_⟩
+  refine ncard_eq_one.mpr ⟨2, ?_⟩
+  ext n
+  simp only [mem_sdiff, mem_union, mem_ofPred_eq, mem_singleton_iff]
+  grind [Nat.not_even_iff_odd]
 
 set_option linter.style.formal_proof_palomar false in
 /-- Every infinite arithmetic progression has property `P₁`. This is proved in [Sa82b]. -/
